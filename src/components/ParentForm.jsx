@@ -3,9 +3,10 @@ import { Form } from "@/components/Form";
 import SelectFeatures from "@/components/SelectFeatures";
 import SendButton from "@/components/SendButton";
 import VulnerabilityCard from "@/components/VulnerabilityCard";
+import { Card } from "@/components/ui/card";
 import { marked } from "marked";
 import { useState } from "react";
-import run from "../utils/gemini";
+import run, { runJson } from "../utils/gemini";
 
 export default function ParentForm() {
   const [textareaValue, setTextareaValue] = useState("");
@@ -15,8 +16,11 @@ export default function ParentForm() {
   const [complexityData, setComplexityData] = useState(null);
   const [securityVulnerabilities, setSecurityVulnerabilities] = useState([]);
 
+  const handleFeatureSelect = (feature) => setSelectedFeature(feature);
+  const handleFileUpload = (content) => setTextareaValue(content);
   const clearTextarea = () => {
     setTextareaValue("");
+    setAiResponse("");
     setComplexityData(null);
     setSecurityVulnerabilities([]);
   };
@@ -27,73 +31,71 @@ export default function ParentForm() {
       return;
     }
 
-    let prompt;
-    if (selectedFeature === "Complexity Analysis") {
-      prompt = `Here is the relevant code:\n\n${textareaValue}\n\nPlease provide the Time and Space complexity of the given code in the following JSON format:\n{\n  "time-complexity": "AI response",\n  "space-complexity": "AI response"\n}\n\nDon't give me any other text. Remember that don't give me any other text in that json`;
-    } else if (selectedFeature === "Security Vulnerability Detection") {
-      prompt = `Here is the relevant code:\n\n${textareaValue}\n\nPlease analyze the code for any code improvement to reduce chances of risk in my code and respond with a JSON object containing the following information:\n{\n  "name": "Name of the code improvement to reduce chances of risk",\n "risk-percentage": "Percentage of risk out of 100%"\n}\n\nProvide only the JSON object without any additional text.`;
-    } else {
-      prompt = `You are an AI expert in software development. Your task is to assist with the following: \n- Feature: ${selectedFeature}\n- Objective: Analyze and execute the task as it relates to the provided code, efficiency, and overall code quality.\n\nHere is the relevant code:\n\n${textareaValue}\n\nPlease generate insights, improvements, or solutions based on the task above. Be clear, professional, and provide only important explanations for any changes or recommendations you suggest.\n\nAfter explaining a point, add <br> tag for line breaking.`;
+    if (!textareaValue.trim()) {
+      alert("Please paste your code first.");
+      return;
     }
 
     setLoading(true);
 
     try {
-      const result = await run(prompt);
-      if (!result) {
-        throw new Error("Received null or undefined response.");
-      }
-
-      console.log("Raw AI response:", result.replace(/```json|```/g, '').trim());
-
       if (selectedFeature === "Complexity Analysis") {
-        // Try to parse JSON directly if no backticks are present
-        let jsonString = result.trim();
-        try {
-          const parsedResponse = JSON.parse(jsonString);
-          setComplexityData(parsedResponse);
-          setAiResponse("");
-          setSecurityVulnerabilities([]);
-        } catch (error) {
-          console.error("Error parsing response:", error);
-          setAiResponse("Error parsing response, Please Try Again!");
-          setComplexityData(null);
-          setSecurityVulnerabilities([]);
-        }
-      } else if (selectedFeature === "Security Vulnerability Detection") {
-        // Clean the result by removing the ```json``` tags
-        let jsonString = result.replace(/```json|```/g, '').trim();
-        console.log(jsonString);
-        
-        try {
-          const parsedResponse = JSON.parse(jsonString);
-          
-          // Wrap the single object in an array if it's not already an array
-          const vulnerabilitiesArray = Array.isArray(parsedResponse) ? parsedResponse : [parsedResponse];
-          
-          setSecurityVulnerabilities(vulnerabilitiesArray);
-          setAiResponse("");
-          setComplexityData(null);
-        } catch (error) {
-          console.error("Error parsing JSON response:", error);
-          setAiResponse("Error parsing JSON response.");
-          setSecurityVulnerabilities([]);
-        }
-      }
-      else {
-        const lines = result.split('\n');
-        
-        if (lines.length > 0) {
-          lines[0] = lines[0].replace(/^#+\s*/, '');
-          lines[0] = `<span style="font-size: 1.5em; font-weight: bold;">${lines[0]}</span>`;
-        }
-      
-        const formattedResponse = marked.parse(lines.join('\n'));
+        const prompt = `Analyze the following code and return the time and space complexity.
+CODE:
+${textareaValue}
 
-        setAiResponse(formattedResponse);
+Return a JSON object with keys "time-complexity" and "space-complexity". Values should be Big-O notation like "O(n)", "O(n^2)", etc.`;
+
+        const parsed = await runJson(prompt);
+        if (parsed && parsed["time-complexity"]) {
+          setComplexityData(parsed);
+          setAiResponse("");
+          setSecurityVulnerabilities([]);
+        } else {
+          setAiResponse("Error: Could not analyze complexity. Please try again.");
+          setComplexityData(null);
+        }
+
+      } else if (selectedFeature === "Security Vulnerability Detection") {
+        const prompt = `Analyze the following code for security vulnerabilities.
+CODE:
+${textareaValue}
+
+Return a JSON object with keys "name" (brief vulnerability description) and "risk-percentage" (a number from 0 to 100).`;
+
+        const parsed = await runJson(prompt);
+        if (parsed) {
+          const arr = Array.isArray(parsed) ? parsed : [parsed];
+          setSecurityVulnerabilities(arr);
+          setAiResponse("");
+          setComplexityData(null);
+        } else {
+          setAiResponse("Error: Could not perform security analysis. Please try again.");
+          setSecurityVulnerabilities([]);
+        }
+
+      } else {
+        // Text-based features (explanation, docs, quality, etc.)
+        const prompt = `ACT AS AN AI CODING ASSISTANT.
+Task: ${selectedFeature}
+Code:
+${textareaValue}
+
+Provide clear, professional insights with explanations.`;
+
+        const result = await run(prompt);
+        if (result && result.startsWith("Error:")) {
+          setAiResponse(result);
+        } else if (result) {
+          const formattedResponse = marked.parse(result);
+          setAiResponse(formattedResponse);
+        } else {
+          setAiResponse("Error: No response received from AI.");
+        }
         setComplexityData(null);
         setSecurityVulnerabilities([]);
       }
+
     } catch (error) {
       console.error("Error during API call:", error.message || error);
       setAiResponse("Error during API call: " + (error.message || error));
@@ -102,14 +104,6 @@ export default function ParentForm() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFileUpload = (content) => {
-    setTextareaValue(content);
-  };
-
-  const handleFeatureSelect = (feature) => {
-    setSelectedFeature(feature);
   };
 
   return (
@@ -125,7 +119,6 @@ export default function ParentForm() {
           onChange={(e) => setTextareaValue(e.target.value)}
         />
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-2 bg-secondary/80 rounded-2xl border border-border/50">
-
           <SelectFeatures
             onClear={clearTextarea}
             onFileUpload={handleFileUpload}
@@ -198,4 +191,3 @@ export default function ParentForm() {
     </div>
   );
 }
-
