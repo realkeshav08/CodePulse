@@ -9,7 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { features } from "@/data/features";
-import { Loader2, LucideTrash, UploadIcon } from "lucide-react";
+import { Loader2, Trash, Upload } from "lucide-react";
+
 import { useRef, useState } from "react";
 
 export default function SelectFeatures({ onClear, onFileUpload, onFeatureSelect }) {
@@ -67,12 +68,13 @@ export default function SelectFeatures({ onClear, onFileUpload, onFeatureSelect 
         />
 
         <Button variant="outline" onClick={() => fileInputRef.current.click()} disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : <UploadIcon className="h-4 w-4" />}
+          {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : <Upload className="h-4 w-4" />}
         </Button>
 
         <Button variant="outline" onClick={onClear}>
-          <LucideTrash className="h-4 w-4" />
+          <Trash className="h-4 w-4" />
         </Button>
+
       </div>
     </div>
   );

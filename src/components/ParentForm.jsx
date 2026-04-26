@@ -88,7 +88,8 @@ export default function ParentForm() {
           lines[0] = `<span style="font-size: 1.5em; font-weight: bold;">${lines[0]}</span>`;
         }
       
-        const formattedResponse = marked(lines.join('\n'));
+        const formattedResponse = marked.parse(lines.join('\n'));
+
         setAiResponse(formattedResponse);
         setComplexityData(null);
         setSecurityVulnerabilities([]);
@@ -112,56 +113,89 @@ export default function ParentForm() {
   };
 
   return (
-    <div className="max-w-5xl p-4 rounded-lg shadow-md grid w-full gap-2">
-      <Form
-        value={textareaValue}
-        onChange={(e) => setTextareaValue(e.target.value)}
-      />
-      <SelectFeatures
-        onClear={clearTextarea}
-        onFileUpload={handleFileUpload}
-        onFeatureSelect={handleFeatureSelect}
-      />
-      <SendButton onSubmit={submitCode} loading={loading} />
+    <div className="max-w-5xl mx-auto p-6 md:p-10 glass-card rounded-3xl shadow-2xl flex flex-col w-full gap-8 mt-10 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight text-center">Analyze Your Logic</h2>
+        <p className="text-muted-foreground text-center">Paste your code below to begin the deep-dive analysis.</p>
+      </div>
 
-      {aiResponse && !complexityData && !securityVulnerabilities.length && (
-        <div className="mt-4 p-4 border rounded-lg bg-gray-100 text-left max-w-4xl mx-auto overflow-auto">
-          <div dangerouslySetInnerHTML={{ __html: aiResponse }} />
+      <div className="space-y-6">
+        <Form
+          value={textareaValue}
+          onChange={(e) => setTextareaValue(e.target.value)}
+        />
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-2 bg-secondary/80 rounded-2xl border border-border/50">
+
+          <SelectFeatures
+            onClear={clearTextarea}
+            onFileUpload={handleFileUpload}
+            onFeatureSelect={handleFeatureSelect}
+          />
+          <SendButton onSubmit={submitCode} loading={loading} />
+        </div>
+      </div>
+
+      {loading && (
+        <div className="py-12 flex flex-col items-center justify-center space-y-4">
+          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+          <p className="text-sm font-medium text-muted-foreground animate-pulse">Consulting the AI experts...</p>
         </div>
       )}
 
-      {complexityData && (
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 border rounded-lg bg-gray-100">
-            <h2 className="text-lg font-semibold">Time Complexity</h2>
-            <p>{complexityData["time-complexity"]}</p>
-          </div>
-          <div className="p-4 border rounded-lg bg-gray-100">
-            <h2 className="text-lg font-semibold">Space Complexity</h2>
-            <p>{complexityData["space-complexity"]}</p>
-          </div>
-          <ComplexityChart
-            complexity={complexityData["time-complexity"]}
-            title="Time Complexity"
-          />
-          <ComplexityChart
-            complexity={complexityData["space-complexity"]}
-            title="Space Complexity"
-          />
+      {aiResponse && !complexityData && !securityVulnerabilities.length && !loading && (
+        <div className="mt-8 p-6 rounded-2xl bg-secondary/50 border border-border/50 text-left max-w-none overflow-auto shadow-sm">
+          <div className="prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: aiResponse }} />
         </div>
       )}
 
-      {securityVulnerabilities.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {securityVulnerabilities.map((vulnerability, index) => (
-            <VulnerabilityCard
-              key={index}
-              title={vulnerability.name}
-              risk={vulnerability["risk-percentage"]}
+      {complexityData && !loading && (
+        <div className="mt-8 space-y-8 animate-in zoom-in-95 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-6 border-l-4 border-l-primary shadow-sm">
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                Time Complexity
+              </h2>
+              <p className="text-3xl font-mono font-bold text-primary">{complexityData["time-complexity"]}</p>
+            </Card>
+            <Card className="p-6 border-l-4 border-l-blue-400 shadow-sm">
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                Space Complexity
+              </h2>
+              <p className="text-3xl font-mono font-bold text-blue-500">{complexityData["space-complexity"]}</p>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ComplexityChart
+              complexity={complexityData["time-complexity"]}
+              title="Time Complexity"
             />
-          ))}
+            <ComplexityChart
+              complexity={complexityData["space-complexity"]}
+              title="Space Complexity"
+            />
+          </div>
+        </div>
+      )}
+
+      {securityVulnerabilities.length > 0 && !loading && (
+        <div className="mt-8 space-y-4 animate-in slide-in-from-right-4 duration-500">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            🛡️ Security & Risk Assessment
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {securityVulnerabilities.map((vulnerability, index) => (
+              <VulnerabilityCard
+                key={index}
+                title={vulnerability.name}
+                risk={vulnerability["risk-percentage"]}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
+

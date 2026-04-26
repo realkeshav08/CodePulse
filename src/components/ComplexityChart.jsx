@@ -90,10 +90,12 @@ const ComplexityChart = ({ complexity, title }) => {
   };
 
   return (
-    <div className="p-4 border rounded-lg bg-gray-100">
+    <div className="p-6 rounded-2xl bg-white border border-border shadow-sm flex flex-col items-center">
+      <h3 className="text-sm font-semibold text-muted-foreground mb-4 self-start uppercase tracking-wider">{title}</h3>
       <Line data={data} options={options} />
     </div>
   );
+
 };
 
 export default ComplexityChart;
