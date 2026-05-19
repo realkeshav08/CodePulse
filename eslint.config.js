@@ -30,10 +30,20 @@ export default [
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs.recommended.rules,
       'react/jsx-no-target-blank': 'off',
+      // This is a plain JavaScript project that does not use the `prop-types`
+      // package, so prop-type validation would only produce noise.
+      'react/prop-types': 'off',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    // Build/config files and serverless functions run in Node, not the browser.
+    files: ['*.config.js', 'vite.config.js', 'api/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
     },
   },
 ]

@@ -15,7 +15,6 @@ import { useRef, useState } from "react";
 
 export default function SelectFeatures({ onClear, onFileUpload, onFeatureSelect }) {
   const fileInputRef = useRef(null);
-  const [selectedFeature, setSelectedFeature] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFileChange = (event) => {
@@ -25,18 +24,20 @@ export default function SelectFeatures({ onClear, onFileUpload, onFeatureSelect 
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target.result;
-        setTimeout(() => {
-          setIsLoading(false);
-          onFileUpload(content);
-          fileInputRef.current.value = null;
-        }, 1000);
+        setIsLoading(false);
+        onFileUpload(content, file.size);
+        fileInputRef.current.value = null;
+      };
+      reader.onerror = () => {
+        setIsLoading(false);
+        alert("Failed to read file. Please try again.");
+        fileInputRef.current.value = null;
       };
       reader.readAsText(file);
     }
   };
 
   const handleFeatureChange = (value) => {
-    setSelectedFeature(value);
     onFeatureSelect(value);
   };
 

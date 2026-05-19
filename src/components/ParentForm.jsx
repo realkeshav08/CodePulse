@@ -4,9 +4,12 @@ import SelectFeatures from "@/components/SelectFeatures";
 import SendButton from "@/components/SendButton";
 import VulnerabilityCard from "@/components/VulnerabilityCard";
 import { Card } from "@/components/ui/card";
+import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import run, { runJson } from "../utils/gemini";
+
+const MAX_FILE_SIZE = 512 * 1024; // 512 KB
 
 export default function ParentForm() {
   const [textareaValue, setTextareaValue] = useState("");
@@ -16,14 +19,20 @@ export default function ParentForm() {
   const [complexityData, setComplexityData] = useState(null);
   const [securityVulnerabilities, setSecurityVulnerabilities] = useState([]);
 
-  const handleFeatureSelect = (feature) => setSelectedFeature(feature);
-  const handleFileUpload = (content) => setTextareaValue(content);
-  const clearTextarea = () => {
+  const handleFeatureSelect = useCallback((feature) => setSelectedFeature(feature), []);
+  const handleFileUpload = useCallback((content, fileSize) => {
+    if (fileSize && fileSize > MAX_FILE_SIZE) {
+      alert(`File too large (${(fileSize / 1024).toFixed(0)} KB). Maximum allowed is ${MAX_FILE_SIZE / 1024} KB.`);
+      return;
+    }
+    setTextareaValue(content);
+  }, []);
+  const clearTextarea = useCallback(() => {
     setTextareaValue("");
     setAiResponse("");
     setComplexityData(null);
     setSecurityVulnerabilities([]);
-  };
+  }, []);
 
   const submitCode = async () => {
     if (!selectedFeature || selectedFeature === "Select a feature") {
@@ -61,13 +70,14 @@ Return a JSON object with keys "time-complexity" and "space-complexity". Values 
 CODE:
 ${textareaValue}
 
-Return a JSON object with keys "name" (brief vulnerability description) and "risk-percentage" (a number from 0 to 100).`;
+Return a JSON array where each element is an object with keys "name" (brief vulnerability description) and "risk-percentage" (a number from 0 to 100). If no vulnerabilities are found, return an empty array.`;
 
         const parsed = await runJson(prompt);
         if (parsed) {
           const arr = Array.isArray(parsed) ? parsed : [parsed];
-          setSecurityVulnerabilities(arr);
-          setAiResponse("");
+          const valid = arr.filter((v) => v && v.name);
+          setSecurityVulnerabilities(valid);
+          setAiResponse(valid.length ? "" : "No security vulnerabilities were detected in the provided code.");
           setComplexityData(null);
         } else {
           setAiResponse("Error: Could not perform security analysis. Please try again.");
@@ -87,8 +97,9 @@ Provide clear, professional insights with explanations.`;
         if (result && result.startsWith("Error:")) {
           setAiResponse(result);
         } else if (result) {
-          const formattedResponse = marked.parse(result);
-          setAiResponse(formattedResponse);
+          const rawHtml = marked.parse(result);
+          const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+          setAiResponse(sanitizedHtml);
         } else {
           setAiResponse("Error: No response received from AI.");
         }
