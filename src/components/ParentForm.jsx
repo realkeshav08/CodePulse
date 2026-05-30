@@ -148,7 +148,7 @@ Provide clear, professional insights with explanations.`;
 
       {aiResponse && !complexityData && !securityVulnerabilities.length && !loading && (
         <div className="mt-8 p-6 rounded-2xl bg-secondary/50 border border-border/50 text-left max-w-none overflow-auto shadow-sm">
-          <div className="prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: aiResponse }} />
+          <div className="prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(aiResponse) }} />
         </div>
       )}
 

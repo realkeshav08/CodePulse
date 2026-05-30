@@ -107,15 +107,46 @@ src/
 
 ## 🛡️ Security & Resilience
 
-- **Server-side API key:** Gemini calls are proxied through `api/analyze.js`.
+- **Server-side API key.** Gemini calls are proxied through `api/analyze.js`.
   The key never leaves the server and is never included in the client bundle.
-- **Anti-XSS:** AI-generated markdown is sanitised with **DOMPurify** before
-  being inserted into the DOM.
-- **Error boundary:** A React error boundary keeps a failed render from
+- **Same-origin guard.** The `/api/analyze` endpoint rejects requests whose
+  `Origin`/`Referer` host does not match the request host, blocking casual
+  cross-site abuse of the endpoint.
+- **No-store responses.** AI responses are returned with `Cache-Control:
+  no-store` so they are never cached by intermediaries.
+- **XSS sanitisation.** AI markdown is sanitised with **DOMPurify** at the
+  render site — every code path that feeds the response surface is sanitised,
+  not just the happy path.
+- **Error boundary.** A React error boundary keeps a failed render from
   crashing the whole page.
-- **Input limits:** Uploaded files are capped at 512 KB on the client and the
-  API rejects oversized prompts.
-- **Dependencies:** `npm audit` currently reports zero known vulnerabilities.
+- **Input limits.** Uploads are capped at 512 KB on the client; the API
+  rejects prompts above 200 KB.
+- **Resilient model fallback.** The API cascades through multiple Gemini /
+  Gemma models on rate limits, 5xx, overload, and network errors.
+- **Dependencies.** `npm audit` reports zero known vulnerabilities.
+
+> The endpoint is still public and unauthenticated. For a portfolio / demo on
+> the free tier this is fine — quota exhaustion is the worst case. If this
+> ever takes real traffic or a billed key, add rate limiting (e.g. Upstash
+> Redis or Vercel KV) on top of the same-origin guard.
+
+---
+
+## ☁️ Deploying to Vercel
+
+1. Push the repository to GitHub and import it into Vercel (or run
+   `vercel --prod` locally).
+2. Under **Project → Settings → Environment Variables** add **`GEMINI_API_KEY`**
+   to **Production** (and **Preview**, if you use preview deployments). It
+   must have no `VITE_` prefix — that prefix would inline it into the client
+   bundle.
+3. In **Google Cloud Console → Credentials**, set the key's
+   **Application restrictions** to **None** (it is now a server-side key —
+   "Websites" referrer restrictions would block your own backend, which has
+   no `Referer` header). Keep **API restrictions** limited to the Generative
+   Language API.
+4. Deploy. The `vercel.json` rewrite (`/((?!api/).*) → /index.html`) handles
+   SPA routing without swallowing the `/api` routes.
 
 ---
 

@@ -18,6 +18,24 @@ const apiKey = process.env.GEMINI_API_KEY;
 // (Vercel's default is 10s, which the fallback chain can exceed.)
 export const config = { maxDuration: 60 };
 
+/**
+ * Same-origin guard. Legitimate browser requests carry an `Origin` (or
+ * `Referer`) header whose host matches the request's own host. Bots and
+ * scripts that POST directly to the endpoint typically send neither, so this
+ * filters out most casual abuse without breaking real users.
+ */
+function isSameOrigin(req) {
+  const host = req.headers.host;
+  if (!host) return false;
+  const source = req.headers.origin || req.headers.referer;
+  if (!source) return false;
+  try {
+    return new URL(source).host === host;
+  } catch {
+    return false;
+  }
+}
+
 // Reject prompts larger than this (characters) before spending a model call.
 const MAX_PROMPT_CHARS = 200_000;
 
@@ -142,9 +160,16 @@ async function generateJson(genAI, prompt) {
 }
 
 export default async function handler(req, res) {
+  // Prevent any caching/sharing of analysis responses.
+  res.setHeader("Cache-Control", "no-store");
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed. Use POST." });
+  }
+
+  if (!isSameOrigin(req)) {
+    return res.status(403).json({ error: "Forbidden." });
   }
 
   if (!apiKey) {
